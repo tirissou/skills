@@ -1,0 +1,5 @@
+interface:
+  display_name: "Build"
+  short_description: "Run a spec's tickets to a finished feature branch"
+policy:
+  allow_implicit_invocation: false

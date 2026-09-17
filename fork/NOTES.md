@@ -100,6 +100,71 @@ version number. Diff against the base SHA, not the tag.
    describes, so a drift check measures against the diagram as of the commit it
    is reviewing.
 
+10. **Ticket worktrees are provisioned by the repo's existing `post-checkout`
+    hook** (decided 2026-09-16, closing the worktree provisioning problem that
+    Stage 2 recorded and Stage 5 was blocked on). Drawn in
+    `.scratch/fork/visuals/design-worktree-provisioning.html`.
+
+    The first draft of this fork proposed a new convention, a
+    `docs/agents/worktree-setup.sh` the orchestrator would call. Thibault
+    pointed out the repo already provisions on checkout, and it does: a
+    `post-checkout` hook creates the venv and runs `uv pip install -e '.[all]'`.
+    `core.hooksPath` is set in the **shared** `main/.git/config` with
+    `extensions.worktreeConfig` unset, so every worktree of the repo inherits
+    it with no action from anyone. Adding a second mechanism beside it would
+    have been duplicated knowledge with no rule saying which file gets the next
+    dependency.
+
+    The orchestrator therefore knows nothing about provisioning. It runs
+    `git worktree add`, and three things follow:
+
+    - **The hook supplies files.** Extended (2026-09-16) to copy `corpora/`,
+      which is a git-ignored build artifact of
+      `python -m edna.verify corpus <fixture_id>`. **Copied, not symlinked**,
+      at Thibault's call: `settle_corpus` writes into `corpora/<fixture_id>/`,
+      so a link would let one worktree write through into another's, and 3.3 MB
+      is cheap insurance. **Not regenerated**, because
+      `settle_corpus._assert_serial_context()` raises off the main thread, so
+      parallel worktrees cannot rebuild concurrently even if the cost were
+      acceptable.
+    - **The orchestrator supplies the environment.** A hook is a subprocess of
+      `git worktree add`; it exits, and cannot export into a process that
+      starts later. The hook's `direnv allow` only whitelists `.envrc` for an
+      interactive, direnv-hooked shell, and no agent shell is either. So the
+      orchestrator sources the tracked `.envrc` itself before running anything.
+      This is a bug that predates Stage 5: agents have never had these
+      variables, in any worktree.
+    - **The smoke check proves both.** `post-checkout` runs *after* the
+      checkout, so a failing hook leaves a half-provisioned worktree and a
+      nonzero exit. Nothing is handed to an implementer until a proving command
+      passes in that worktree; a red one stops the run.
+
+    Two findings from making the hook edit, both of which would have been
+    silent failures:
+
+    - **The copy source is not the primary worktree.** `main/corpora` does not
+      exist; `target-garment` and `garment-pocock` have it. Copying "from the
+      primary worktree" would have been a no-op for every ticket worktree. The
+      hook now honours `EDNA_CORPORA_SRC` when the caller knows, and otherwise
+      takes the first other worktree with a non-empty `corpora/`. All three
+      paths were tested standalone before anything depended on them.
+    - **`MEDIAPIPE_LANDMARKER_MODEL_URI` now resolves.** Thibault fixed the
+      target: the 29 MB model file exists at the path `.envrc` names. The
+      variable is still only defined in `.envrc` and there is no direnv hook in
+      any rc file on this machine, so it remains unset in every agent shell.
+      The fix means sourcing `.envrc` is now sufficient, with no validation
+      logic needed.
+
+    The hook is untracked, in `.git/hooks`, reached by an absolute
+    `core.hooksPath`, so "the repo provisions itself" is really "this machine
+    does". Backed up beside itself as `post-checkout.bak-2026-09-16` before
+    editing. Not blocking, worth knowing.
+
+    **Not yet observed:** that `post-checkout` fires on `git worktree add`. It
+    is documented by git, asserted in the hook's own header, and corroborated
+    by four worktrees whose `.venv` mtimes match their creation dates. The
+    first real Stage 5 run is what will prove it.
+
 ## Stage 0 findings
 
 - **The fork already existed** and was an exact copy of `upstream/main`. Stage 0
@@ -342,6 +407,53 @@ something during the session and restored.
   modules, with the dependency graph approved. That has not happened, and it
   cannot: Stage 3's "done when" is the same pilot conversation and is also still
   open. Both are waiting on one session in the pilot repo, not on more building.
+
+## Stage 5 notes
+
+- **`skills/personal/build/`**, user-invoked, copied from
+  `skills/in-progress/implement-spec` at upstream `5b15a47` and then rewritten.
+  The provenance comment sits at the top of the file. The original is
+  byte-identical to the base commit and was not edited.
+- **Written as one whole, not four increments.** The plan asks for 5a through 5d
+  built in sequence, "each tried on the pilot tickets before the next". There
+  are no pilot tickets: Stage 3's and Stage 4's "done when" are both the same
+  unrun pilot design conversation. Writing four drafts of one file with nothing
+  to try them against would have produced four unverified drafts instead of one.
+  **The skill is untried.** Nothing below claims otherwise.
+- **Upstream's exploration-subagent step was dropped.** `implement-spec` step 2
+  spawns an explorer to save notes outside the repo for later implementers. The
+  plan does not list it and ground rule 1 forbids extras, so it is gone.
+  Recorded because it is a real capability, not an oversight: if implementers
+  turn out to re-explore the same ground per ticket, this is the first thing to
+  add back.
+- **Provisioning is written generically**, per decision 10. The skill says a
+  repo may provision itself on checkout and that this is the repo's business,
+  names no hook, no path and no package manager, and requires the orchestrator
+  to load the environment and smoke-check regardless. Nothing about the pilot
+  repo leaked into a skill that has to work elsewhere.
+- **Two rules carried in from findings rather than from the plan.** "One
+  command-runner per ticket worktree at a time" comes from the Stage 1
+  concurrency hazard. The clause on a typecheck that is already red at the base
+  commit closes the second standing hazard: with 760 mypy errors in the pilot
+  repo, a gate quoting that output would be theatre, so the skill says to
+  declare it once and gate on the suite instead. Both are hazards this file
+  already recorded as things Stage 5 depends on, not new scope.
+- **Evidence**: plugin validate --strict passed; plugin version in sync;
+  frontmatter and `agents/openai.yaml` agree that `build` is user-invoked; all
+  three skills it calls (`code-review`, `tdd`, `evaluate-output`) are
+  model-invoked and therefore actually reachable, which a user-invoked
+  dependency would not have been; zero em-dashes; zero cross-folder markdown
+  links; zero lines removed from `skills/engineering`; `implement-spec`
+  byte-identical to base; `build` linked into both harness directories and
+  readable through the symlink.
+- **Eval**: `.scratch/fork/visuals/eval-2026-09-16-2355.html`. The fork it
+  closed is drawn in `.scratch/fork/visuals/design-worktree-provisioning.html`.
+- **What this stage does not prove.** That the orchestrator works. Every claim
+  above is about the artifact, not its behaviour. The frontier query, the
+  modules-overlap gate, the fix-loop cap, the merger's conflict judgement and
+  the stop list have never run. So has the provisioning chain: that
+  `post-checkout` fires on `git worktree add` is still documented and
+  corroborated rather than observed.
 
 ## Pilot repo notes
 
