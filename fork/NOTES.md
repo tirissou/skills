@@ -71,6 +71,22 @@ version number. Diff against the base SHA, not the tag.
    `docs/design_ledger.md` and two files under `docs/ledger/claims/drape-design/`
    all point into it. A `git mv` would break every one of them for no gain.
 
+7. **The pilot base stays at `3f26fbbe`** (decided 2026-09-16, closing
+   question 1). `8c069926` turned out to be *older* than the current base, so
+   that option was never real. The live alternative was rebasing onto
+   `target-garment`'s tip, which had moved 21 commits and +4180/-209 ahead the
+   same day. Staying put keeps the pilot's diff clean and isolates it from work
+   in flight; the cost is a larger merge at the end, and a Stage 5 green-suite
+   gate measured against a 21-commit-old suite. Only `1b7aa294` (the agents
+   config) is unique to `pocock-pilot`; its other commit, `2c90fbaa`, is the
+   same patch as `c160f8bb` on `target-garment`.
+8. **The Design phase gets no stated exit condition** (decided 2026-09-16,
+   closing question 3). `STRATEGY.md` ends Design when seams are agreed, with
+   where tests go and the dependency category behind each seam, but no skill
+   says so and none will. Stage 4's `to-spec` diagram section carries the same
+   information downstream. Revisit after the pilot if Design turns out to end
+   ambiguously.
+
 ## Stage 0 findings
 
 - **The fork already existed** and was an exact copy of `upstream/main`. Stage 0
@@ -124,6 +140,43 @@ version number. Diff against the base SHA, not the tag.
   for theory) is already documented at length in the repo's own
   `CONTRIBUTING.md`, including the STOP checklist and the CLAUDE.md template.
   The skill was a second copy of a rule that has a home.
+
+### Stage 1's `code-review` dry run (2026-09-16)
+
+Run against `6b833708` (`forward_map` trunk-contour lift hardening, 2 files,
++103/-19) in a detached worktree of the pilot repo, fixed point `6b833708~1`.
+Spec source: the commit body's enumerated review-requested items, since no
+tracked spec exists for that work.
+
+- **Both axes reported, Drift skipped** with the one-line note the fence asks
+  for. The plan's Stage 1 "done when" is met.
+- **The rewritten duplication rule earned its keep.** Standards reported
+  Duplicated Knowledge and explicitly moved the finding off the code that looks
+  alike (the chord loop, which the commit had already collapsed) and onto the
+  rule expressed twice (the scale-k computation). Under upstream's "the same
+  logic shape appears in more than one hunk" wording the collapsed loop would
+  have read as fixed and the live duplication would have been missed.
+- **The book checks fired, and plausibly.** Feature Envy on validation that
+  belongs to the dataclass's `__post_init__`, not the lift.
+- **The two axes disagreed usefully.** Standards called the precision clause a
+  documented-standard breach (`CLAUDE.md`: cite claim IDs, do not restate
+  measurements); Spec called the same clause wrong on its facts (it cites a
+  docstring stating ~0.85%, not the ~0.21% it claims). Neither would have found
+  the other's version. That is the case the two-axis split exists for.
+- **`docs/agents/issue-tracker.md` is absent from history before `1b7aa294`.**
+  It lives only on `pocock-pilot`, so a worktree cut from an arbitrary historical
+  commit leaves `code-review` without a tracker. Stage 5 always branches off the
+  feature branch, so this is fine as designed, but it is worth not forgetting.
+- **A concurrency hazard for Stage 5, found by accident.** The Spec sub-agent
+  reported the test suite unverifiable because `open3d` failed to load a native
+  dependency. Checked directly afterwards: `import open3d` succeeds. The failure
+  was transient, caused by two sub-agents running `uv run` against one shared
+  `.venv` at the same time, each triggering a resync that uninstalls and
+  reinstalls packages under the other. **Stage 5 runs reviewers and implementers
+  in parallel by design**, so either each worktree gets its own environment or
+  nothing in a worktree may run `uv run` concurrently. Add it to the worktree
+  provisioning problem recorded under Stage 2, which now has three parts:
+  the model URI, the corpora, and this.
 
 ## Stage 2 notes
 
@@ -231,18 +284,10 @@ something during the session and restored.
 
 ## Questions for Thibault
 
-1. **Is `pocock-pilot`'s base right?** It sits at `3f26fbbe`, the worktree's
-   detached HEAD at the moment the branch was cut, 17 commits behind
-   `target-garment`. Reset it if you meant `8c069926` or the tip.
-2. **Stage 1's `code-review` dry run is still unrun.** Its blocker is gone:
-   `/setup-matt-pocock-skills` has been run in `backend/garment-pocock` and
-   `docs/agents/issue-tracker.md` is configured for GitHub (decision 6). The
-   dry run needs a small branch in the pilot repo to point it at, and should
-   report Standards and Spec and skip Drift, because no spec carries a diagram
-   yet.
-3. **Where does "the phase ends when seams are agreed" live?** `STRATEGY.md`
-   gives the Design phase that exit condition (where tests go, and the
-   dependency category behind each seam), and `to-spec` will carry the diagram
-   in Stage 4, but no skill currently states the condition. The plan does not
-   assign it, so it was not built. It fits in one line of the `grill-with-docs`
-   fence if you want it there.
+None open. Question 1 (pilot base) and question 3 (the Design phase exit
+condition) were closed by decisions 7 and 8. Question 2, Stage 1's `code-review`
+dry run, ran on 2026-09-16; its result is under "Stage 1 notes".
+
+The two standing hazards are not questions but work Stage 5 depends on: the
+worktree provisioning problem (Stage 2 notes, now three parts) and the 760 mypy
+errors that leave the typecheck unable to prove anything about a change.
