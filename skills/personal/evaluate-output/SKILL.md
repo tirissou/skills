@@ -45,6 +45,8 @@ python3 <skill-dir>/build-page.py \
   --out .scratch/<feature>/visuals/eval-<YYYY-MM-DD-HHMM>.html
 ```
 
+**Write every diagram as `<pre class="mermaid">`, never a `<div>`.** Both render locally, but only the `<pre>` form also renders in a Claude Artifact, which draws Mermaid itself. One fragment then serves both outputs, and before any script runs the block still shows its own source, which is a readable fallback.
+
 `build-page.py` inlines the vendored Mermaid bundle when the fragment contains a `class="mermaid"` block, so the page renders with no network. Never paste the library yourself.
 
 Save under `.scratch/<feature>/visuals/` when the work has a feature folder (the one holding its spec, tickets, and ledger). Bounded work with no feature folder goes to `.scratch/misc/visuals/`. Not the temp directory: it does not survive.
@@ -54,6 +56,23 @@ The shell provides: `.badge` with `.pass`, `.fail`, `.warn`; `.panel` and `.pane
 ## 4. Deliver it
 
 Open it if you are the session talking to the user and `open` is available. Otherwise, and always from a subagent, print the absolute path and stop. Never report a path you have not just written.
+
+The local file is the record. It works with no network and no account, and it sits beside the spec, tickets and ledger it describes.
+
+## 5. Publish it, when it needs to leave this machine
+
+When the user wants the eval on a phone, on another machine, or in someone else's hands, publish the same fragment as an Artifact as well. Build it a second time and hand the result to the Artifact tool:
+
+```
+python3 <skill-dir>/build-page.py --target artifact \
+  --title "<short noun phrase>" --content <fragment>.html --out <name>.html
+```
+
+`--target artifact` strips the document wrapper the Artifact tool supplies itself and drops the library, since the host renders the diagrams. The page goes from megabytes to tens of kilobytes.
+
+Two things differ from the local file. The title is the artifact's name in a gallery of many, so it is a short, specific noun phrase, never a sentence and never a name with an explainer bolted on after a colon: the one-line `description` carries the explanation. And publishing the same file path again redeploys to the same URL, so an eval that gets rebuilt keeps its link.
+
+A subagent can do this too: the general-purpose subagent type carries the Artifact tool. It still writes the local file first.
 
 ## Writing the page
 
