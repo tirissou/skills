@@ -165,6 +165,45 @@ version number. Diff against the base SHA, not the tag.
     by four worktrees whose `.venv` mtimes match their creation dates. The
     first real Stage 5 run is what will prove it.
 
+## The probe (2026-09-16): provisioning, observed rather than inferred
+
+A throwaway worktree, `git worktree add ... -b hook-probe-throwaway pocock-pilot`,
+created and destroyed to settle what decision 10 could only corroborate.
+
+**What was proved.** `post-checkout` does fire on `git worktree add`: the hook
+ran, created the venv, installed the package, and copied `corpora/` from
+`garment-pocock` (not from `main`, which has none, which is the source-selection
+fix working). Whole thing took **5.1 seconds**, not the minutes feared. The
+per-ticket provisioning cost is not a reason to limit parallelism.
+
+**What was disproved, and it matters more.** A fresh worktree was *not* green.
+Collection errors, measured in one sitting:
+
+| step | errors |
+|---|---|
+| hook as written, no env | 203 |
+| + `.envrc` sourced | 196 |
+| + `uv sync --extra all` | **0**, 2076 tests collected |
+
+Sourcing `.envrc` fixed exactly the 7 modules the model URI accounts for. The
+other 196 were one cause: **`uv pip install -e '.[all]'` ignores `uv.lock`.**
+`open3d` is unpinned in `pyproject.toml`, so a fresh resolve took 0.20.0, which
+dlopens a `libusb` that is not installed on this machine. Every pre-existing
+worktree has 0.19.0. `uv sync --extra all` honours the lock, and collection is
+clean.
+
+**The hook now uses `uv sync --extra all`.** One behaviour change worth knowing:
+`uv sync` **prunes** anything not in the lock, so a branch checkout will now
+remove packages installed ad hoc into a worktree's venv. That is reproducibility
+working as intended, and it is a change to daily workflow, not just to ticket
+worktrees. Revert to the old line if it bites.
+
+**What this says about Stage 5.** The danger was never provisioning cost. It is
+that a ticket worktree can silently get a *different dependency set* from the
+feature worktree, so a ticket fails for reasons unrelated to its code, or passes
+somewhere the merge gate will not. The lock closes that. The smoke check is what
+catches it if it reopens.
+
 ## Stage 0 findings
 
 - **The fork already existed** and was an exact copy of `upstream/main`. Stage 0
@@ -248,13 +287,16 @@ tracked spec exists for that work.
 - **A concurrency hazard for Stage 5, found by accident.** The Spec sub-agent
   reported the test suite unverifiable because `open3d` failed to load a native
   dependency. Checked directly afterwards: `import open3d` succeeds. The failure
-  was transient, caused by two sub-agents running `uv run` against one shared
-  `.venv` at the same time, each triggering a resync that uninstalls and
-  reinstalls packages under the other. **Stage 5 runs reviewers and implementers
-  in parallel by design**, so either each worktree gets its own environment or
-  nothing in a worktree may run `uv run` concurrently. Add it to the worktree
-  provisioning problem recorded under Stage 2, which now has three parts:
-  the model URI, the corpora, and this.
+  was read as transient, caused by two sub-agents running `uv run` against one
+  shared `.venv` at the same time, each triggering a resync that uninstalls and
+  reinstalls packages under the other.
+
+  > **This diagnosis was wrong. Corrected 2026-09-16, see "The probe" below.**
+  > The Stage 1 dry run was in a *detached worktree*, i.e. a fresh one, where
+  > `uv pip install -e '.[all]'` resolved `open3d` 0.20.0, which needs a
+  > `libusb` this machine does not have. The follow-up check that "succeeded"
+  > ran in the *existing* worktree, which has 0.19.0. Two different
+  > environments, read as one flaky one. Nothing concurrent was involved.
 
 ## Stage 2 notes
 
@@ -432,8 +474,11 @@ something during the session and restored.
   to load the environment and smoke-check regardless. Nothing about the pilot
   repo leaked into a skill that has to work elsewhere.
 - **Two rules carried in from findings rather than from the plan.** "One
-  command-runner per ticket worktree at a time" comes from the Stage 1
-  concurrency hazard. The clause on a typecheck that is already red at the base
+  command-runner per ticket worktree at a time" was written from the Stage 1
+  concurrency hazard, whose diagnosis the probe later refuted. The rule stays,
+  because a package manager mutating a venv under a second reader is a real
+  mechanism, but it is now a precaution rather than a response to something
+  observed. Nothing has been seen to fail this way. The clause on a typecheck that is already red at the base
   commit closes the second standing hazard: with 760 mypy errors in the pilot
   repo, a gate quoting that output would be theatre, so the skill says to
   declare it once and gate on the suite instead. Both are hazards this file
