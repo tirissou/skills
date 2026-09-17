@@ -40,6 +40,29 @@ version number. Diff against the base SHA, not the tag.
    (`git add -f .scratch/<feature>/`). In the pilot repo this is a no-op:
    nothing in its `.gitignore` matches `.scratch`, so design artifacts commit
    normally. The decision stands for repos that do ignore it.
+6. **Issue tracker: GitHub issues, not local files** (decided 2026-09-16,
+   amending the strategy's decision table). `/setup-matt-pocock-skills`
+   configured GitHub, the remote is real (`tirissou/_edna`) and `gh` is
+   authenticated, so the configuration works as written.
+
+   What it changes downstream:
+
+   - **Stage 4b** commits the spec, `decisions.md`, `CONTEXT.md` and ADRs to
+     the feature branch as planned, but not the tickets: those are issues.
+     Implementer worktrees read design artifacts from disk and tickets over
+     the network.
+   - **Stage 5's frontier** can use GitHub's native issue dependencies rather
+     than a hand-rolled blocker list. `docs/agents/issue-tracker.md` already
+     spells out the frontier query: open children of the map issue, minus any
+     with `issue_dependencies_summary.blocked_by > 0` or an assignee. This is
+     the real gain over local files.
+   - **Modules touched** (the plan's Stage 4b field, which drives parallelism)
+     becomes a line in the issue body rather than a field in a local template.
+   - Every implementer and reviewer subagent now needs `gh` on its PATH and a
+     live network. A `gh` outage stops the Build phase, where local files
+     would not have.
+   - The ledger stays local at `.scratch/<feature>/ledger.md`. It records this
+     run's state, not the tickets, and it must survive without the network.
 5. **`docs/superpowers/` in the pilot repo stays where it is** (decided
    2026-09-16, replacing plan Stage 0 task 6). The plugin and its SessionStart
    hook are already gone, so nothing re-activates that workflow, and the
@@ -96,11 +119,11 @@ version number. Diff against the base SHA, not the tag.
 - **The stale `~/.claude/skills/engineering/` bucket was deleted** (decided
   2026-09-16). Its unique skills (`to-issues`, `to-prd`, `zoom-out`) are
   recoverable from this repo's history at `386d4ff` and `e112a6b`.
-- **The pilot repo's `.claude/skills/write-docs` was deleted** in its commit
-  `c160f8bb`, leaving the other 41 modified files alone. It encoded a
-  three-tier documentation convention (`CLAUDE.md` at 50 to 150 lines,
-  `README.md` for callers, `docs/` for theory) that now has no home. Fold it
-  into that repo's `CONTEXT.md` if it should still bind.
+- **`write-docs` lost nothing.** The three-tier documentation convention it
+  encoded (`CLAUDE.md` at 50 to 150 lines, `README.md` for callers, `docs/`
+  for theory) is already documented at length in the repo's own
+  `CONTRIBUTING.md`, including the STOP checklist and the CLAUDE.md template.
+  The skill was a second copy of a rule that has a home.
 
 ## Pilot repo notes
 
