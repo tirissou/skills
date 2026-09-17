@@ -23,12 +23,19 @@ version number. Diff against the base SHA, not the tag.
    every repo rather than being copied per project.
 2. **End of Build: feature branch only.** The orchestrator leaves a finished,
    reviewed feature branch. No draft PR. Thibault opens the PR and merges.
-3. **Pilot repo: `~/Projects/tailoring/backend/target-garment`.** Note that
-   `tailoring` is a workspace, not a repo: it holds ten git repos, and the
-   pilot is one of them. It was picked as the most active (400 commits in the
-   30 days to 2026-09-16, 1057 tracked files, 349 test files) and the one
-   already carrying `CONTEXT.md`, a design ledger and its own
-   `.claude/skills/write-docs`. It sits on branch `target-garment`.
+3. **Pilot repo: `~/Projects/tailoring/backend/garment-pocock`, branch
+   `pocock-pilot`** (moved there 2026-09-16, replacing an earlier choice of
+   `backend/target-garment`). Note the shape: `tailoring` is a workspace, not a
+   repo, and `backend/main`, `backend/encoder`, `backend/target-garment` and
+   `backend/garment-pocock` are four **worktrees of one repository** whose
+   common git dir is `backend/main/.git`. The pilot is therefore isolated by
+   worktree and branch, not by repository, and Stage 5's ticket worktrees will
+   be siblings of these.
+
+   `pocock-pilot` was branched off the worktree's detached HEAD at `3f26fbbe`,
+   17 commits behind `target-garment`'s tip. The pin moved from `8c069926` to
+   `3f26fbbe` mid-setup, by a hand other than this session's, so if the base is
+   wrong it is one `git reset --hard` away.
 4. **`.scratch/` reaches worktrees by force-add on the feature branch**
    (`git add -f .scratch/<feature>/`). In the pilot repo this is a no-op:
    nothing in its `.gitignore` matches `.scratch`, so design artifacts commit
@@ -38,11 +45,8 @@ version number. Diff against the base SHA, not the tag.
    hook are already gone, so nothing re-activates that workflow, and the
    directory is now cited as evidence rather than read as current process:
    `CONTEXT.md:133`, four `[evidence](docs/superpowers/specs/...)` links in
-   `docs/design_ledger.md`, two files under `docs/ledger/claims/drape-design/`,
-   and an exclusion in `.claude/skills/write-docs/SKILL.md` all point into it.
-   A `git mv` would break every one of them, in a tree that currently has 41
-   modified files and an in-flight SDD session. Revisit if the name itself
-   starts to mislead.
+   `docs/design_ledger.md` and two files under `docs/ledger/claims/drape-design/`
+   all point into it. A `git mv` would break every one of them for no gain.
 
 ## Stage 0 findings
 
@@ -104,16 +108,20 @@ version number. Diff against the base SHA, not the tag.
   are evidence paths (above) plus `.gitignore:217`, which ignores
   `.superpowers/`. Nothing there instructs an agent to use that workflow, so
   plan Stage 0 task 5 needed no edits.
-- **`.superpowers/` still holds SDD ledgers on disk**, gitignored, from a
-  session that reads as unfinished. Left alone.
-- **The repo has its own `.claude/skills/write-docs`.** Project-level skills
-  take precedence over user-level ones, so watch for it competing with the
-  fork's skills once `skills/personal/` lands.
+- **`.superpowers/` still holds SDD ledgers on disk**, gitignored. Left alone.
+- **`.claude/skills/write-docs` is deleted on both branches**: `target-garment`
+  at `c160f8bb` and `pocock-pilot` at `2c90fbaa`. Project-level skills take
+  precedence over user-level ones, so it would have shadowed the fork's.
+- The pilot worktree is clean (0 modified files) and carries 346 test files,
+  which is what the Stage 5 fix loop and the full-suite check after each merge
+  will run against.
 
 ## Questions for Thibault
 
-1. **The stale `~/.claude/skills/engineering/` bucket** (2026-05-18) may be
-   shadowing skills the allowlist now installs fresh. Delete it, or leave it?
-2. **Run `/setup-matt-pocock-skills` in the pilot repo** (user-invoked, so it
-   has to be typed by you), choosing the local-files tracker. It writes
-   `docs/agents/issue-tracker.md`, which the Plan and Build phases read.
+1. **Is `pocock-pilot`'s base right?** It sits at `3f26fbbe`, the worktree's
+   detached HEAD at the moment the branch was cut, 17 commits behind
+   `target-garment`. Reset it if you meant `8c069926` or the tip.
+2. **Run `/setup-matt-pocock-skills` in `backend/garment-pocock`**
+   (user-invoked, so it has to be typed by you), choosing the local-files
+   tracker. It writes `docs/agents/issue-tracker.md`, which `code-review` and
+   the Plan and Build phases read. Stage 1's dry run is waiting on it.
