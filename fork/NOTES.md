@@ -73,6 +73,31 @@ version number. Diff against the base SHA, not the tag.
 - `.codegraphcontext/` sits untracked at the repo root. Left alone: not part of
   this plan.
 
+## Stage 1 notes
+
+- **`tdd`**: one inline replacement (the "Refactoring is not part of the loop"
+  rule, which now points at the between-slice check) plus one trailing fenced
+  block holding "Name the break", "Between-slice design check" and "Seams
+  already agreed in a spec".
+- **`code-review`**: the "Duplicated Code" smell replaced in place by
+  "Duplicated Knowledge", four book checks fenced onto the end of the smell
+  baseline, and the Drift axis fenced onto the end of the file.
+- `git diff upstream/main -- skills/engineering` removes exactly the two lines
+  the plan names, and every added line sits inside a `fork:` fence. Checked
+  mechanically, not by eye.
+- **`~/.claude/CLAUDE.md` did not exist** and was created for the two rules
+  that are live now (size the task, use the `codebase-design` vocabulary). The
+  other three rules name skills that land in Stages 2 and 3, and get added with
+  them.
+- **The stale `~/.claude/skills/engineering/` bucket was deleted** (decided
+  2026-09-16). Its unique skills (`to-issues`, `to-prd`, `zoom-out`) are
+  recoverable from this repo's history at `386d4ff` and `e112a6b`.
+- **The pilot repo's `.claude/skills/write-docs` was deleted** in its commit
+  `c160f8bb`, leaving the other 41 modified files alone. It encoded a
+  three-tier documentation convention (`CLAUDE.md` at 50 to 150 lines,
+  `README.md` for callers, `docs/` for theory) that now has no home. Fold it
+  into that repo's `CONTEXT.md` if it should still bind.
+
 ## Pilot repo notes
 
 - **No superpowers references in the pilot repo's `CLAUDE.md`.** The matches

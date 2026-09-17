@@ -35,4 +35,35 @@ When the shape of that interface is itself in question (how deep the module is, 
 
 - **Red before green.** Write the failing test first, then only enough code to pass it. Don't anticipate future tests or add speculative features.
 - **One slice at a time.** One seam, one test, one minimal implementation per cycle.
-- **Refactoring is not part of the loop.** It belongs to the review stage (see the `code-review` skill), not the red → green implementation cycle.
+<!-- fork: start -->
+- **Refactoring has two homes.** Small design refactors happen inside the loop, at the between-slice design check below. Larger ones belong to the review stage (see the `code-review` skill).
+<!-- fork: end -->
+
+
+<!-- fork: start -->
+
+## Name the break
+
+Every test says which production change would make it fail, in its name or in a one-line comment above it. "user can checkout with valid cart" names a break: remove the checkout path and it goes red. "renders correctly" names nothing, so nobody can tell later whether it still guards anything.
+
+If the only edit that breaks a test is someone deliberately changing a decision (a constant's value, the wording of a message, the order of a list nobody depends on), the test is not written. It pins a choice instead of protecting behaviour, and it goes red on every intentional change while catching no regression.
+
+## Between-slice design check
+
+After each green slice, before starting the next, answer three questions in one or two lines each:
+
+1. Did any interface get wider or shallower?
+2. Is knowledge about one decision now in more than one module?
+3. Does the code still sit on the agreed seams?
+
+A "yes" is fixed with a refactor now, while the slice is small and the reasoning is fresh. If fixing it is out of scope for the current ticket, log it instead as a ruling: `Ruling: <what> | <why> | <cost if wrong>`.
+
+The check is cheap because it runs over one slice's worth of change. Deferred to review, the same three questions have to be answered across a whole branch, where the fix is a rewrite rather than a rename.
+
+## Seams already agreed in a spec
+
+"Test only at pre-agreed seams" above asks you to confirm the seams with the user. When you are implementing from a spec that carries a module/seam diagram, that diagram **is** the confirmation: its seams are agreed, and asking again wastes the user's attention on a decision already made.
+
+Ask only about a seam the diagram does not cover. Needing one is itself a signal: the ticket may have outgrown its spec.
+
+<!-- fork: end -->

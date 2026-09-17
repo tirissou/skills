@@ -43,7 +43,9 @@ On top of whatever the repo documents, the Standards axis always carries the **s
 Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 - **Mysterious Name**: a function, variable, or type whose name doesn't reveal what it does or holds. → rename it; if no honest name comes, the design's murky.
-- **Duplicated Code**: the same logic shape appears in more than one hunk or file in the change. → extract the shared shape, call it from both.
+<!-- fork: start -->
+- **Duplicated Knowledge**: the same business rule or decision is expressed in two or more places in the change, so changing the rule would mean editing each of them. Code that merely looks alike is not this smell. → give the rule one home, call it from both.
+<!-- fork: end -->
 - **Feature Envy**: a method that reaches into another object's data more than its own. → move the method onto the data it envies.
 - **Data Clumps**: the same few fields or params keep travelling together (a type wanting to be born). → bundle them into one type, pass that.
 - **Primitive Obsession**: a primitive or string standing in for a domain concept that deserves its own type. → give the concept its own small type.
@@ -54,6 +56,19 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 - **Message Chains**: long `a.b().c().d()` navigation the caller shouldn't depend on. → hide the walk behind one method on the first object.
 - **Middle Man**: a class or function that mostly just delegates onward. → cut it, call the real target direct.
 - **Refused Bequest**: a subclass or implementer that ignores or overrides most of what it inherits. → drop the inheritance, use composition.
+
+<!-- fork: start -->
+
+Four further checks close the baseline, in the same format and with the same judgement-call status, drawn from _A Philosophy of Software Design_ and _The Pragmatic Programmer_:
+
+- **Information Leakage**: one design decision (a format, a schema, an ordering, a wire protocol) is known to two or more modules in the change, so changing it means changing all of them. → give the decision a single owner, and let everyone else reach it through that interface.
+- **Complexity Pushed Up**: a module hands its callers work it could have done itself: configuration they must assemble, errors they must interpret, steps they must sequence correctly. → pull the complexity down, so the interface stays simpler than the implementation.
+- **Temporal Decomposition**: modules are split by when things happen (read, then validate, then write) rather than by what they know, so one piece of knowledge is smeared across every phase. → regroup by knowledge, not by order of execution.
+- **Orthogonality Violation**: a change to one concern forced edits in an unrelated one, or a module knows about a concern that is none of its business (a data layer that knows HTTP status codes). → cut the link, so the two can change independently.
+
+Reversibility is deliberately not here. It is a design-review question, asked before the code exists, and a diff cannot answer it.
+
+<!-- fork: end -->
 
 ### 4. Spawn both sub-agents in parallel
 
@@ -85,3 +100,24 @@ A change can pass one axis and fail the other:
 - Code that does exactly what the issue asked but breaks the project's conventions → **Spec pass, Standards fail.**
 
 Reporting them separately stops one axis from masking the other.
+
+
+<!-- fork: start -->
+
+## Drift: the third axis
+
+Runs **only** when the spec found in step 2 carries a module/seam diagram. Without one there is nothing to measure drift against: skip the axis and say so in one line in the final report.
+
+When it runs, it is a third **parallel sub-agent**, spawned in step 4 alongside Standards and Spec.
+
+**Drift sub-agent prompt** should include:
+
+- The diff command and commit list.
+- The spec's module/seam diagram, pasted in full (the sub-agent has no other access to it).
+- The brief: "The diagram is what we agreed to build. Report every place the diff departs from it: a module that took on a responsibility the diagram gives to another, a call that crosses a boundary the diagram doesn't draw, a seam that moved, a seam that was never built, a module in the code that isn't in the diagram at all. For each, quote the code and state plainly whether it changes a seam or leaves the seams intact. Don't judge whether the code is good; only whether it matches the diagram. Under 400 words."
+
+In step 5, report it under its own `## Drift` heading beside `## Standards` and `## Spec`, never merged into either. The axes answer different questions: a change can be clean code, faithful to the spec's prose, and still have moved a seam.
+
+**A deviation that changes a seam is the finding that matters most.** It doesn't get fixed by the reviewer. It goes to the user, who either approves the new seam, in which case the spec's diagram is updated and committed before work resumes, or rejects it, in which case the code moves back. An approved seam change that never reaches the diagram makes every later drift check fire on the same, already-settled deviation.
+
+<!-- fork: end -->
