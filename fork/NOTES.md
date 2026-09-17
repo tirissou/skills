@@ -174,6 +174,47 @@ and a stale committed `.codegraphcontext/db/falkordb.settings` (pointing at a
 worktree named `comfort-ease-replumb` that no longer exists) was deleted by
 something during the session and restored.
 
+## Stage 3 notes
+
+- **`skills/personal/align-language/`** and **`skills/personal/visual-design-review/`**,
+  both model-invoked with narrow descriptions, plus one fenced append to
+  `grill-with-docs` (decisions to disk, the two-prototype cap, design-it-twice
+  into the review page). The always-on rules in `~/.claude/CLAUDE.md` are now
+  complete at five bullets.
+- **The page machinery stays in `evaluate-output` and is reached by path.** The
+  plan left this open at Stage 2 ("reuse it by calling this skill's material
+  through the Skill tool. If that turns out awkward, ask me"). It is awkward:
+  the Skill tool's seam hands the caller a whole skill's instructions, and most
+  of `evaluate-output`'s are about re-running proving commands over finished
+  work, which a design review has none of. `visual-design-review` therefore
+  calls `../evaluate-output/build-page.py` directly. The decision is drawn out
+  in `.scratch/fork/visuals/design-page-machinery.html`, produced by the new
+  skill on its own dependency question. **A third fragment author is the signal
+  to move the script to its own folder**; that move is one `git mv` and two
+  edited paths.
+- **Sibling paths survive the install layout by accident, not design.**
+  `~/.claude/skills/<name>` is a flat symlink into the repo, so
+  `../evaluate-output/` resolves whether an agent treats its skill directory as
+  the symlink or as the resolved path. Verified by running the build from
+  `~/.claude/skills/visual-design-review`.
+- **No cross-folder markdown links.** Nothing upstream links from one skill
+  folder into another; every cross-skill reference is "call the Skill tool with
+  X". The first draft of the `grill-with-docs` append linked
+  `../codebase-design/DESIGN-IT-TWICE.md` and was rewritten to match.
+- **Evidence** (all re-run at the end of the stage): both frontmatters parse and
+  both skills are model-invoked; zero em-dashes in every changed file; the only
+  lines removed from `skills/engineering` are still the two Stage 1 named, and
+  everything added outside a `fork:` fence is a blank line; both skills linked
+  into `~/.claude/skills` and `~/.agents/skills`; the design page built from the
+  installed skill directory renders 3 of 3 diagrams headless with 0 error SVGs
+  and 0 external references.
+- **Eval**: `.scratch/fork/visuals/eval-2026-09-16-2200.html`. This repo has no
+  `.scratch` entry in `.gitignore`, so the directory shows as untracked. Left
+  that way: the pages are outputs, and `.gitignore` is upstream's file.
+- **What this stage does not prove.** Nothing here shows the two skills fire at
+  the right moment. That needs the plan's "done when": a real design
+  conversation in the pilot repo.
+
 ## Pilot repo notes
 
 - **No superpowers references in the pilot repo's `CLAUDE.md`.** The matches
@@ -193,7 +234,15 @@ something during the session and restored.
 1. **Is `pocock-pilot`'s base right?** It sits at `3f26fbbe`, the worktree's
    detached HEAD at the moment the branch was cut, 17 commits behind
    `target-garment`. Reset it if you meant `8c069926` or the tip.
-2. **Run `/setup-matt-pocock-skills` in `backend/garment-pocock`**
-   (user-invoked, so it has to be typed by you), choosing the local-files
-   tracker. It writes `docs/agents/issue-tracker.md`, which `code-review` and
-   the Plan and Build phases read. Stage 1's dry run is waiting on it.
+2. **Stage 1's `code-review` dry run is still unrun.** Its blocker is gone:
+   `/setup-matt-pocock-skills` has been run in `backend/garment-pocock` and
+   `docs/agents/issue-tracker.md` is configured for GitHub (decision 6). The
+   dry run needs a small branch in the pilot repo to point it at, and should
+   report Standards and Spec and skip Drift, because no spec carries a diagram
+   yet.
+3. **Where does "the phase ends when seams are agreed" live?** `STRATEGY.md`
+   gives the Design phase that exit condition (where tests go, and the
+   dependency category behind each seam), and `to-spec` will carry the diagram
+   in Stage 4, but no skill currently states the condition. The plan does not
+   assign it, so it was not built. It fits in one line of the `grill-with-docs`
+   fence if you want it there.
