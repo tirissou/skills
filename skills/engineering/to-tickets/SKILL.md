@@ -103,3 +103,53 @@ The end-to-end behaviour this ticket makes work, from the user's perspective, no
 </issue-template>
 
 In either form, avoid specific file paths or code snippets: they go stale fast. Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it and note briefly that it came from a prototype. Trim to the decision-rich parts, not a working demo, just the important bits.
+
+
+<!-- fork: start -->
+
+## Modules touched
+
+Each ticket declares the modules it touches, by name, from the spec's Module/Seam Diagram. Module names, never file paths: paths go stale within a ticket or two, and navigation is not what the field is for.
+
+Add it to both templates, directly after **Blocked by**:
+
+**Modules touched:** the modules from the spec's diagram that this ticket changes.
+
+This is the field that makes parallelism safe. Two tickets whose blockers are all done can run at the same time only when their declared modules do not overlap; where they overlap they run one after the other, whatever the blocking edges say. Blocking edges record what must happen first, and that is a different question from what two agents can safely edit at once.
+
+Two things the field surfaces while the breakdown is still cheap to change. A ticket that declares most of the diagram is not a vertical slice yet; split it. A ticket that has to touch a module the diagram does not have is a design question wearing a ticket's clothes; take it back to the spec rather than letting the implementer invent the module.
+
+## Show the breakdown as a graph
+
+Step 4 presents a numbered list. Draw it as well. A numbered list of fifteen tickets with blocking edges is a graph flattened into prose, and an accidental chain or a bottleneck is invisible in that form to the one person whose approval the step is asking for.
+
+Write the body as an HTML fragment, then build the page with the shared shell:
+
+```
+python3 <skills-dir>/evaluate-output/build-page.py \
+  --title "Tickets: <feature>" \
+  --subtitle "<n> tickets - <date>" \
+  --content <fragment>.html \
+  --out .scratch/<feature-slug>/visuals/tickets.html
+```
+
+The fragment holds one `<pre class="mermaid">` block, never a `<div>`: both render locally, only the `<pre>` form also renders in a Claude Artifact, and before any script runs it still shows its own source. Inside it, a `flowchart LR` (`TD` once the longest chain passes four or so): one node per ticket labelled with its number and title, one edge per blocking edge drawn from blocker to blocked. Group the nodes by module with `subgraph`, or colour them by module with `classDef`, so overlap is something the reader sees rather than something they reconstruct by reading a field ticket by ticket. Under the diagram, the numbered list step 4 already asks for.
+
+The shell provides `.panel`, `.grid`, `.scroll`, `.badge` and `.mermaid`; use them rather than inventing styles. Open the page if you are the session talking to the user and `open` is available, otherwise print the absolute path. Then ask step 4's questions against it, plus the two the graph makes askable at all: is anything a chain that does not need to be one, and do the modules spread widely enough for anything to run in parallel?
+
+If the script is not installed, show the numbered list alone and say the page was skipped. This is worth a minute, not a detour.
+
+## Commit the design artifacts before Build
+
+Once the user approves the breakdown and the tickets are published, commit to the feature branch:
+
+- `.scratch/<feature-slug>/spec.md`
+- `.scratch/<feature-slug>/decisions.md`
+- `CONTEXT.md`, and any ADR the design phase added or changed
+- the ticket files, on a local-markdown tracker. On a real tracker the tickets are issues, read over the network, and there is nothing here to commit.
+
+Build runs every ticket in a fresh git worktree cut from this branch, and a worktree holds committed files and nothing else. Anything left uncommitted is invisible to every implementer, and the failure mode is silent: no error, just a spec that is not there and an implementer that invents its own.
+
+Where `.gitignore` covers `.scratch/`, force-add on this branch only, `git add -f .scratch/<feature-slug>/`. Do not edit `.gitignore` to make this work: the artifacts are wanted on one feature branch, not in every future one.
+
+<!-- fork: end -->

@@ -87,6 +87,19 @@ version number. Diff against the base SHA, not the tag.
    information downstream. Revisit after the pilot if Design turns out to end
    ambiguously.
 
+9. **`gh` is assumed always available** (decided 2026-09-16, after Stage 4).
+   Decision 6 listed a `gh` outage as a hazard that local files would not have
+   had. That hedge is dropped: treat `gh` as present on every PATH, with a live
+   network, in every session and every subagent. Nothing in the skills or the
+   orchestrator carries a fallback for its absence, and if it ever is absent
+   the Build phase stops with a plain error rather than degrading.
+
+   This removes one of the two reasons Stage 4 gave for keeping a copy of the
+   spec on disk. The remaining one is the load-bearing one and does not depend
+   on the network: the module/seam diagram has to be versioned with the code it
+   describes, so a drift check measures against the diagram as of the commit it
+   is reviewing.
+
 ## Stage 0 findings
 
 - **The fork already existed** and was an exact copy of `upstream/main`. Stage 0
@@ -267,6 +280,68 @@ something during the session and restored.
 - **What this stage does not prove.** Nothing here shows the two skills fire at
   the right moment. That needs the plan's "done when": a real design
   conversation in the pilot repo.
+
+## Stage 4 notes
+
+- **Two fenced appends, no removals.** `to-spec` gains "Read the decision files",
+  "The Module/Seam Diagram section" and "The spec also lives on disk";
+  `to-tickets` gains "Modules touched", "Show the breakdown as a graph" and
+  "Commit the design artifacts before Build". Checked mechanically: zero lines
+  removed from either file against the base commit, and everything added
+  outside a `fork:` fence is a blank separator line.
+- **The diagram section is appended, not inserted into `<spec-template>`.** The
+  plan's fence rule prefers a trailing block, so the template above it is
+  untouched and the append opens by naming the step and the template it amends,
+  the same shape Stage 1 used in `tdd`. The cost is real: an agent that reads
+  `<spec-template>` as the whole answer can produce a spec with no diagram, and
+  every drift check downstream then has nothing to measure against. Watch for
+  it in the pilot; if it happens, the fix is a fenced insert inside the template
+  tags and the merge risk is worth paying.
+- **Two copies of the spec, and the disk copy wins.** With the GitHub tracker
+  (decision 6) the spec is an issue, but Build reads design artifacts from a
+  worktree, which holds committed files and nothing else. So `to-spec` now
+  writes `.scratch/<feature-slug>/spec.md` as well and names it canonical: the
+  issue is the copy people comment on, the file is the copy agents read. Each
+  carries a pointer to the other. This is duplicated knowledge by construction,
+  which the fork's own `code-review` rule would flag; it is accepted because the
+  diagram has to be **versioned with the code it describes**. A drift check run
+  on the diff at commit X has to measure against the diagram as it stood at
+  commit X, and an issue body has one current version and no history tied to the
+  branch. The mitigation is the stated winner plus "change the file first".
+  (Availability of `gh` is not part of this argument: see decision 9.)
+- **The third fragment author arrived and the script did not move.** Stage 3
+  recorded that a third caller of `build-page.py` was the signal to move it out
+  of `evaluate-output` into its own folder. `to-tickets` is that third caller,
+  and the move turned out not to be the problem the note anticipated. What
+  breaks across buckets is the *sibling* form `../evaluate-output/build-page.py`,
+  which only resolves between two skills in `personal/`; the form actually
+  documented in the command block, `<skills-dir>/evaluate-output/build-page.py`,
+  resolves from any bucket because the install layout is flat. `to-tickets` uses
+  that form and it was verified by running it. The sibling wording in
+  `visual-design-review`'s prose is now the odd one out, not the script's
+  location. Revisit only if a caller appears that cannot resolve `<skills-dir>`.
+- **`to-spec` and `to-tickets` live in a promoted bucket**, so the repo's own
+  `CLAUDE.md` would normally demand a re-synced docs page and an `ask-matt`
+  update. The fork plan's ground rule 3 puts both out of scope, as it did for
+  `tdd` and `code-review` in Stage 1. Unchanged, recorded again because it is
+  the kind of thing a later reader reports as an omission.
+- **Evidence** (re-run at the end of the stage): zero lines removed from the two
+  files against the base; four lines added outside a fence, all blank; both
+  fences balanced; both frontmatters intact and still user-invoked; zero em or
+  en dashes in any line added; both skills symlinked into `~/.claude/skills` and
+  `~/.agents/skills` and resolving into this repo. The graph instruction was run
+  rather than read: a five-ticket sample built through
+  `~/.claude/skills/evaluate-output/build-page.py` renders 1 of 1 diagram
+  headless, 0 error SVGs, subgraph clusters drawn, all five ticket labels
+  present, 0 external references, 3496 KB. Page:
+  `.scratch/fork/visuals/tickets-sample.html`.
+- **Eval**: `.scratch/fork/visuals/eval-2026-09-16-2320.html`, with the
+  sample tickets graph it cites at `.scratch/fork/visuals/tickets-sample.html`.
+- **What this stage does not prove.** The plan's "done when" is a real design
+  conversation turned into a committed spec with a diagram and tickets with
+  modules, with the dependency graph approved. That has not happened, and it
+  cannot: Stage 3's "done when" is the same pilot conversation and is also still
+  open. Both are waiting on one session in the pilot repo, not on more building.
 
 ## Pilot repo notes
 
