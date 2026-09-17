@@ -125,6 +125,55 @@ version number. Diff against the base SHA, not the tag.
   `CONTRIBUTING.md`, including the STOP checklist and the CLAUDE.md template.
   The skill was a second copy of a rule that has a home.
 
+## Stage 2 notes
+
+- **`skills/personal/evaluate-output/`**: `SKILL.md`, `page-shell.html`,
+  `build-page.py` and a vendored `assets/mermaid.min.js`.
+- **The Mermaid bundle is vendored, 3.4 MB.** "Inline the library so it opens
+  offline" cannot be done by an agent writing the page: no agent can carry
+  3.4 MB through its context. `build-page.py` splices the vendored copy into
+  the shell instead, and only when the fragment actually contains a
+  `class="mermaid"` block, so evals without diagrams stay small.
+- **Verified by rendering, not by reading.** Headless Chrome was pointed at the
+  finished page from a `file://` URL: two flowcharts rendered
+  (`aria-roledescription="flowchart-v2"`), zero error SVGs, and the shell
+  references no external stylesheet, script or font.
+- **`skills/personal/README.md`** added, per the repo convention that every
+  bucket lists its skills. The plan's "don't edit" list covers upstream's
+  publishing files, and this is a new file in a new bucket.
+- The always-on rules in `~/.claude/CLAUDE.md` now carry three bullets. The two
+  remaining ones land with their skills in Stage 3.
+
+## The worktree provisioning problem (found running the Stage 2 eval)
+
+Running `uv run pytest` in the fresh `garment-pocock` worktree **fails at
+collection**: 13 errors, no tests run. Two causes, both untracked and
+worktree-local, so a new worktree never receives them:
+
+1. `MEDIAPIPE_LANDMARKER_MODEL_URI` is set by `.envrc` through direnv, and is
+   read at **module import** by `src/edna/landmark/joints_in_image.py:29`
+   behind a bare `assert`. Unset, it takes out 7 test modules.
+2. `corpora/body0_pencil_v1` is cited by a ledger claim's `depends_on`, and
+   `edna.verify.ledger` raises `LedgerSchemaError` at import when it is
+   missing. That takes out the other 6.
+
+Supply both and the suite is green: **2055 passed, 20 skipped, 1 xfailed, in
+258.67s**. The code is fine; the worktree was unprovisioned.
+
+**This is a direct threat to Stage 5**, which runs every ticket in its own
+fresh worktree and gates each merge on a green suite there. As things stand
+every such worktree starts red for reasons unrelated to its ticket. Options,
+cheapest first: have the orchestrator link `corpora/` and export the model URI
+when it creates a worktree; commit a small fixture corpus so `depends_on`
+resolves from the tree; or make the ledger degrade instead of raising at
+import. Decide before Stage 5, not during it.
+
+Two lesser findings from the same run: `mypy src/edna` reports **760 errors in
+140 files**, so the typecheck currently cannot prove anything about a change,
+and a stale committed `.codegraphcontext/db/falkordb.settings` (pointing at a
+worktree named `comfort-ease-replumb` that no longer exists) was deleted by
+something during the session and restored.
+
 ## Pilot repo notes
 
 - **No superpowers references in the pilot repo's `CLAUDE.md`.** The matches
